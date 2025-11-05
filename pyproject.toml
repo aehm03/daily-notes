@@ -1,0 +1,23 @@
+[project]
+name = "daily-notes"
+version = "0.1.10"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "hns>=1.0.1",
+    "pydantic-ai-slim[google]>=1.0.2",
+    "typer>=0.17.4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+daily = "daily_notes.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
