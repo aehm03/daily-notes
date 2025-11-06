@@ -36,9 +36,9 @@ Run the CLI:
 uv run daily
 ```
 
-Install as editable package:
+Install
 ```bash
-uv pip install -e .
+uv tool install .
 # Then use: daily
 ```
 

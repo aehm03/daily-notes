@@ -15,13 +15,13 @@ class Note(BaseModel):
     heading: str
     note_content: str
     todos: list[str]
-    errors_and_problems: str
+    comments: str
 
     def to_str(self) -> str:
         note: str = f"## {self.heading}\n"
-        note += textwrap.indent(self.note_content, "  ")
+        note += textwrap.indent(self.note_content, "  - ")
         note += "\n"
-        note += "\n".join([textwrap.indent(f"TODO {action}", "  ") for action in self.todos])
+        note += "\n".join([f"  - TODO {action}" for action in self.todos])
         note += "\n"
         return note
 
@@ -38,19 +38,36 @@ def note():
     provider = GoogleProvider(api_key=api_key)
     model: GoogleModel = GoogleModel("gemini-2.5-flash-lite", provider=provider)
 
+    system_prompt=(
+                "You are an expert meeting facilitator and note-taker. Your task is to process a raw audio transcription "
+                "and structure its content perfectly into the provided `Note` Pydantic model.\n"
+                "Follow these rules precisely to populate each field:\n\n"
+                "1.  **`heading`:**\n"
+                "    - Analyze the entire transcript and generate a single, concise title for the note (e.g., 'Project Phoenix Sync - Q4 Planning').\n"
+                "    - This title should summarize the main topic of the discussion.\n\n"
+                "2.  **`note_content`:**\n"
+                "    - Create a clean, well-structured summary of the transcript's key points, decisions, and discussion topics.\n"
+                "    - Use `**bold**` or `*italics*` for emphasis on key terms or people.\n"
+                "    - Use blank lines to separate distinct topics or paragraphs.\n"
+                "    - **Crucially:** Do NOT include the heading here (it's a separate field). Do NOT use markdown lists (`*`, `-`) or add any manual indentation; the system handles this formatting.\n\n"
+                "3.  **`todos`:**\n"
+                "    - Identify all clear action items, tasks, or follow-ups mentioned.\n"
+                "    - Add *only* the task description string to the list (e.g., \"Send the proposal to the client team\").\n"
+                "    - Do NOT add prefixes like 'TODO' or any markdown.\n"
+                "    - Each task should be a separate string in the `list[str]`.\n\n"
+                "4.  **`comments`:**\n"
+                "    - Use this field for any meta-observations about the transcript or process.\n"
+                "    - Examples: 'Audio quality was poor during the second half.' or 'The speaker's identity for topic X was unclear.'\n"
+                "    - If you have no comments, you can leave this field empty or state 'No comments.'\n\n"
+                "**Special Rule - Transcript Quality:**\n"
+                "The transcript is not of perfect quality. If there are unclear words or terms which do not make sense in the context, "
+                "**do not invent content**. Mark the unclear spot directly in the `note_content` with the exact marker `#[[?]]`."
+            ),
+
     note_agent = Agent(
         model=model,
         output_type=Note,
-        system_prompt=(
-            "You are an expert meeting facilitator Your task is to convert the user's "
-            "audio transcription into a well-structured, clean and concise markdown note.\n"
-            "Follow these rules:\n"
-            "- Use appropriate markdown elements like headings highlighting (`**bold**` or `*italics*`).\n"
-            "- Use idendation to structure topics, don't use listings like '*'",
-            "- If you identify any action items, tasks, or follow-ups add them to the list of todos.\n"
-            "- If there are some unclear words, mark them with a question mark (?).\n"
-            "- If there are any problems, add them to errors and problems so they can be logged."
-        ),
+        system_prompt=system_prompt,
     )
 
     recorder = AudioRecorder(sample_rate=16000, channels=1)
@@ -76,7 +93,7 @@ def note():
         n = f.write(formatted_note.to_str() + "\n")
 
     typer.echo(formatted_note.to_str())
-    typer.echo(f"DONE with {formatted_note.errors_and_problems}, {n} ")
+    typer.echo(f"DONE with comments: {formatted_note.comments}, length:{n} ")
 
 
 @app.command()
